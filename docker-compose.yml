@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: trustpay_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: trustpay_user
+      POSTGRES_PASSWORD: trustpay_secure_password_2026
+      POSTGRES_DB: trustpay_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trustpay_user -d trustpay_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustpay_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://trustpay_user:trustpay_secure_password_2026@postgres:5432/trustpay_db
+      TRUSTPAY_MASTER_SECRET: ${TRUSTPAY_MASTER_SECRET:-tp_sec_2026_trustpay_autonomous_fintech_guardrail_hmac_master_key}
+      PAYPAL_MODE: sandbox
+      PAYPAL_BASE_URL: https://api-m.sandbox.paypal.com
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,https://trustpay-ai.vercel.app"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trustpay_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
