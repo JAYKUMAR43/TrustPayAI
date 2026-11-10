@@ -39,8 +39,16 @@ ENV/
 *.sqlite
 trustpay_backup.json
 
-# Media / Big Assets
+# Media / Video Production Assets
 *.mp4
+*.wav
+*.mp3
+*.aac
+*.mov
+docs/audio_tracks/
+docs/new_screenshots/
+TRUSTPAY_AI_Demo.*
+test_verification_suite.py
 
 # Testing & Coverage
 .pytest_cache/
