@@ -1,0 +1,92 @@
+[
+  {
+    "index": 0,
+    "id": "scene_01_problem",
+    "title": "01 | THE AGENT FINANCIAL VULNERABILITY",
+    "start_sec": 0.0,
+    "end_sec": 29.42,
+    "total_end_sec": 29.82,
+    "duration": 29.82
+  },
+  {
+    "index": 1,
+    "id": "scene_02_prompt",
+    "title": "02 | NATURAL-LANGUAGE PROCUREMENT",
+    "start_sec": 29.82,
+    "end_sec": 58.43,
+    "total_end_sec": 58.83,
+    "duration": 29.01
+  },
+  {
+    "index": 2,
+    "id": "scene_03_guardrails",
+    "title": "03 | DETERMINISTIC POLICY GUARDRAILS",
+    "start_sec": 58.83,
+    "end_sec": 87.94,
+    "total_end_sec": 88.34,
+    "duration": 29.51
+  },
+  {
+    "index": 3,
+    "id": "scene_04_buyer_auth",
+    "title": "04 | DUAL-CUSTODY AUTHORIZATION",
+    "start_sec": 88.34,
+    "end_sec": 100.8,
+    "total_end_sec": 101.2,
+    "duration": 12.86
+  },
+  {
+    "index": 4,
+    "id": "scene_05_mandate",
+    "title": "05 | HMAC-SHA256 CRYPTOGRAPHIC MANDATE",
+    "start_sec": 101.2,
+    "end_sec": 123.52,
+    "total_end_sec": 123.92,
+    "duration": 22.72
+  },
+  {
+    "index": 5,
+    "id": "scene_06_paypal",
+    "title": "06 | REAL PAYPAL SANDBOX SETTLEMENT",
+    "start_sec": 123.92,
+    "end_sec": 147.92,
+    "total_end_sec": 148.32,
+    "duration": 24.4
+  },
+  {
+    "index": 6,
+    "id": "scene_07_adversarial",
+    "title": "07 | ADVERSARIAL ATTACK INTERCEPTION",
+    "start_sec": 148.32,
+    "end_sec": 172.99,
+    "total_end_sec": 173.39,
+    "duration": 25.07
+  },
+  {
+    "index": 7,
+    "id": "scene_08_history",
+    "title": "08 | REAL-TIME PURCHASE HISTORY",
+    "start_sec": 173.39,
+    "end_sec": 183.47,
+    "total_end_sec": 183.87,
+    "duration": 10.48
+  },
+  {
+    "index": 8,
+    "id": "scene_09_workspace",
+    "title": "09 | MULTI-TENANT WORKSPACE GOVERNANCE",
+    "start_sec": 183.87,
+    "end_sec": 193.04,
+    "total_end_sec": 193.44,
+    "duration": 9.57
+  },
+  {
+    "index": 9,
+    "id": "scene_10_audit",
+    "title": "10 | TAMPER-EVIDENT AUDIT JOURNAL",
+    "start_sec": 193.44,
+    "end_sec": 211.18,
+    "total_end_sec": 211.58,
+    "duration": 18.14
+  }
+]

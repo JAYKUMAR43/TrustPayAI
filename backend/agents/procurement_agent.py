@@ -380,9 +380,10 @@ class AutonomousProcurementAgent:
             )
         elif not comp.get("within_budget"):
             status = "BUDGET_EXCEEDED"
+            mb_val = float(intent_dict.get('max_budget') or 0.0)
             message = (
                 f"Budget Constraint Notice: {comp.get('recommendation_reason')} "
-                f"A purchase request could not be generated within your budget limit of ${intent_dict.get('max_budget', 0):.2f}."
+                f"A purchase request could not be generated within your budget limit of ${mb_val:.2f}."
                 + security_boundary
             )
         elif guardrail and not guardrail.get("policy_passed"):
@@ -397,7 +398,7 @@ class AutonomousProcurementAgent:
             prod = comp.get("recommended_product") or {}
             quantity = intent_dict.get('quantity', 1)
             unit_price = float(prod.get('price', 0.0))
-            total_price = req.get('amount') if req else round(unit_price * quantity, 2)
+            total_price = float(req.get('amount') if req and req.get('amount') is not None else round(unit_price * quantity, 2))
             qty_line = f"- Quantity: {quantity} unit(s) @ ${unit_price:.2f} = ${total_price:.2f} {prod.get('currency', 'USD')}\n" if quantity > 1 else f"- Price: ${unit_price:.2f} {prod.get('currency', 'USD')}\n"
             message = (
                 f"Procurement Proposal Generated Successfully:\n"
