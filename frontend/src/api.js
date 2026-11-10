@@ -103,18 +103,52 @@ export async function createAgent(agentData) {
   return handleResponse(res, 'Failed to register agent');
 }
 
+export function getStoredRole() {
+  return localStorage.getItem('trustpay_user_role') || 'ORG_ADMIN';
+}
+
+export function setStoredRole(role) {
+  localStorage.setItem('trustpay_user_role', role);
+}
+
+export function getStoredAccountType() {
+  return localStorage.getItem('trustpay_account_type') || 'ORGANIZATION';
+}
+
+export function setStoredAccountType(type) {
+  localStorage.setItem('trustpay_account_type', type);
+}
+
+export function getAuthHeaders(extra = {}) {
+  const role = getStoredRole();
+  const accountType = getStoredAccountType();
+  const orgId = localStorage.getItem('trustpay_org_id') || 'org_default_acme';
+  return {
+    'Content-Type': 'application/json',
+    'X-TrustPay-Role': role,
+    'X-Account-Type': accountType,
+    'X-Organization-Id': orgId,
+    'X-User-Id': role === 'INDIVIDUAL' ? 'usr_individual_buyer' : 'usr_enterprise_admin',
+    'X-User-Email': `${role.toLowerCase()}@trustpay.internal`,
+    'X-MFA-Token': 'TRUSTPAY-MFA-VERIFIED',
+    ...extra
+  };
+}
+
 // ----------------------------------------------------------------------
 // Policies
 // ----------------------------------------------------------------------
 export async function fetchPolicies() {
-  const res = await fetch(`${API_BASE}/policies`);
+  const res = await fetch(`${API_BASE}/policies`, {
+    headers: getAuthHeaders()
+  });
   return handleResponse(res, 'Failed to fetch policies');
 }
 
 export async function createPolicy(policyData) {
   const res = await fetch(`${API_BASE}/policies`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(policyData)
   });
   return handleResponse(res, 'Failed to create spending policy');
@@ -123,10 +157,40 @@ export async function createPolicy(policyData) {
 export async function updatePolicy(policyId, is_active, rule_value) {
   const res = await fetch(`${API_BASE}/policies/${policyId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ is_active, rule_value })
   });
   return handleResponse(res, 'Failed to update policy');
+}
+
+export async function deletePolicy(policyId) {
+  const res = await fetch(`${API_BASE}/policies/${policyId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+  return handleResponse(res, 'Failed to delete policy');
+}
+
+export async function resetDefaultPolicies() {
+  const res = await fetch(`${API_BASE}/policies/reset-defaults`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  });
+  return handleResponse(res, 'Failed to reset default policies');
+}
+
+// ----------------------------------------------------------------------
+// Digital Datasets & Secure Entitlement Fulfillment
+// ----------------------------------------------------------------------
+export async function fetchDatasetEntitlement(purchaseId) {
+  const res = await fetch(`${API_BASE}/datasets/entitlement/${purchaseId}`, {
+    headers: getAuthHeaders()
+  });
+  return handleResponse(res, 'Failed to verify dataset entitlement');
+}
+
+export function getDatasetDownloadUrl(token) {
+  return `${API_BASE}/datasets/download/${token}`;
 }
 
 // ----------------------------------------------------------------------

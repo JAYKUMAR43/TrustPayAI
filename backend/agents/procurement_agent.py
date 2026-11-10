@@ -128,12 +128,14 @@ class AutonomousProcurementAgent:
         category = intent.get("category")
         max_budget = intent.get("max_budget")
         requested_vendor = intent.get("requested_vendor")
+        currency = intent.get("currency", "USD")
 
         catalog_items = catalog_service.search_catalog(
             query=query,
             category=category,
             max_budget=max_budget,
             vendor_name=requested_vendor,
+            currency=currency,
             only_approved=True
         )
 
@@ -145,6 +147,7 @@ class AutonomousProcurementAgent:
                 category=category,
                 max_budget=None,
                 vendor_name=requested_vendor,
+                currency=currency,
                 only_approved=True
             )
 
@@ -184,7 +187,8 @@ class AutonomousProcurementAgent:
             user_intent=intent.get("intent", ""),
             max_budget=intent.get("max_budget"),
             preferred_vendor=intent.get("requested_vendor"),
-            quantity=quantity
+            quantity=quantity,
+            currency=intent.get("currency", "USD")
         )
 
         step = TraceStep(
@@ -508,16 +512,20 @@ class AutonomousProcurementAgent:
         lower = prompt.lower()
         context = context or {}
 
-        # 1. Budget extraction (e.g. "$40", "under $1,500", "40 USD", "40.00", "budget of 1500")
+        # 1. Budget extraction (e.g. "$40", "under $1,500", "under ₹70,000", "40 USD", "70000 INR")
         max_budget: Optional[float] = None
         currency = "USD"
+        if any(c in lower for c in ["₹", "inr", "rupees", "rs.", "rs "]):
+            currency = "INR"
+        elif any(c in lower for c in ["€", "eur", "euros"]):
+            currency = "EUR"
 
         patterns = [
-            r"under\s+\$?\s*([0-9,]+(?:\.[0-9]{1,2})?)",
-            r"budget\s+(?:of\s+)?\$?\s*([0-9,]+(?:\.[0-9]{1,2})?)",
-            r"maximum(?:\s+budget)?\s+(?:of\s+)?\$?\s*([0-9,]+(?:\.[0-9]{1,2})?)",
-            r"\$\s*([0-9,]+(?:\.[0-9]{1,2})?)",
-            r"([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:usd|dollars)"
+            r"under\s+(?:[₹\$€]|rs\.?\s*)?([0-9,]+(?:\.[0-9]{1,2})?)",
+            r"budget\s+(?:of\s+)?(?:[₹\$€]|rs\.?\s*)?([0-9,]+(?:\.[0-9]{1,2})?)",
+            r"maximum(?:\s+budget)?\s+(?:of\s+)?(?:[₹\$€]|rs\.?\s*)?([0-9,]+(?:\.[0-9]{1,2})?)",
+            r"[₹\$€]\s*([0-9,]+(?:\.[0-9]{1,2})?)",
+            r"([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:usd|dollars|inr|rupees|rs|eur|euros)"
         ]
         for pat in patterns:
             m = re.search(pat, lower)
@@ -582,6 +590,8 @@ class AutonomousProcurementAgent:
             requested_vendor = "Dell Technologies"
         elif "lenovo" in lower or "thinkpad" in lower:
             requested_vendor = "Lenovo Group"
+        elif "hp" in lower or "hewlett" in lower or "pavilion" in lower:
+            requested_vendor = "HP Inc."
         elif "apple" in lower or "macbook" in lower:
             requested_vendor = "Apple Inc."
         elif context.get("preferred_vendor"):
@@ -589,7 +599,7 @@ class AutonomousProcurementAgent:
 
         # 4. Keyword extraction
         keywords = []
-        for word in ["dataset", "machine learning", "ml", "financial", "computer vision", "nlp", "benchmark", "speech", "audio", "copilot", "monitoring", "api", "cloud", "compute", "laptop", "laptops", "hardware", "computer", "workstation", "thinkpad", "macbook", "monitor"]:
+        for word in ["dataset", "machine learning", "ml", "financial", "computer vision", "nlp", "benchmark", "speech", "audio", "copilot", "monitoring", "api", "cloud", "compute", "laptop", "laptops", "hardware", "computer", "workstation", "thinkpad", "macbook", "monitor", "16gb", "1tb", "512gb", "ssd", "ram", "ryzen", "intel", "70000"]:
             if word in lower:
                 keywords.append(word)
 

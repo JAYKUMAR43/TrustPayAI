@@ -32,6 +32,13 @@ class CatalogProduct(BaseModel):
     rating: float = 5.0
     tags: List[str] = Field(default_factory=list)
     product_url: Optional[str] = None
+    image_url: Optional[str] = None
+    specifications: Dict[str, Any] = Field(default_factory=dict)
+    availability: str = "IN_STOCK" # IN_STOCK, LOW_STOCK, BACKORDER, OUT_OF_STOCK, INSTANT_DIGITAL_ENTITLEMENT
+    warranty: Optional[str] = None
+    delivery_estimate: Optional[str] = None
+    item_type: str = "PHYSICAL" # PHYSICAL, DIGITAL_DATASET, SAAS_LICENSE, CLOUD_INFRA
+    dataset_metadata: Optional[Dict[str, Any]] = None
 
     @field_validator("price")
     @classmethod

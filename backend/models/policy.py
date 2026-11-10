@@ -11,6 +11,7 @@ class SpendingPolicyModel(Base):
     description = Column(String(256), nullable=False)
     rule_value = Column(Text, nullable=False) # JSON encoded configuration
     is_active = Column(Boolean, default=True, index=True)
+    organization_id = Column(String(36), nullable=True, index=True)
     created_by = Column(String(128), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

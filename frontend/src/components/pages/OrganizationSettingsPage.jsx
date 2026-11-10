@@ -10,7 +10,8 @@ import {
   AlertCircle,
   Lock,
   Layers,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 import {
   fetchOrganizations,
@@ -119,29 +120,32 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-4xl mx-auto text-center text-xs text-[#6B7280]">
-        Loading organization settings...
+      <div className="p-8 max-w-4xl mx-auto text-center text-xs text-[#6B7280] dark:text-[#9CA3AF] flex items-center justify-center space-x-2">
+        <Loader2 className="w-4 h-4 animate-spin text-[#2563EB]" />
+        <span>Loading workspace settings...</span>
       </div>
     );
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-8 bg-[#F9FAFB] min-h-[calc(100vh-65px)] text-[#111827]">
+    <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto space-y-8 bg-[#F9FAFB] dark:bg-[#0B0F19] min-h-[calc(100vh-65px)] text-[#111827] dark:text-[#F3F4F6] transition-colors">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-bold text-[#111827]">Workspace & Organization Settings</h2>
-        <p className="text-xs text-[#6B7280] mt-1">
+        <h2 className="text-xl font-bold text-[#111827] dark:text-[#F9FAFB]">
+          Workspace & Organization Settings
+        </h2>
+        <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] mt-1">
           Manage multi-tenant workspaces, spending governance limits, and payment gateway authorizations.
         </p>
       </div>
 
       {/* Workspace Switcher Card */}
-      <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
-        <div className="flex items-center space-x-2 text-sm font-semibold text-[#111827]">
-          <Building2 className="w-4 h-4 text-[#2563EB]" />
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E5E7EB] dark:border-[#1F2937] p-5 shadow-xs space-y-4">
+        <div className="flex items-center space-x-2 text-sm font-semibold text-[#111827] dark:text-[#F9FAFB]">
+          <Building2 className="w-4 h-4 text-[#2563EB] dark:text-[#60A5FA]" />
           <span>Active Organization Workspace</span>
         </div>
-        <p className="text-xs text-[#6B7280]">
+        <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF]">
           Each organization has an isolated financial workspace with dedicated spending policies and payment rails.
         </p>
 
@@ -154,19 +158,19 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
                 onClick={() => !isSelected && handleSwitchOrg(org.id)}
                 className={`p-4 rounded-xl border transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-[#2563EB] bg-[#EFF6FF] shadow-sm'
-                    : 'border-[#E5E7EB] bg-white hover:border-[#D1D5DB]'
+                    ? 'border-[#2563EB] bg-[#EFF6FF] dark:bg-[#1E3A8A]/30 dark:border-[#1E40AF] shadow-xs'
+                    : 'border-[#E5E7EB] dark:border-[#1F2937] bg-white dark:bg-[#0B0F19] hover:border-[#D1D5DB] dark:hover:border-[#374151]'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#111827]">{org.name}</span>
+                  <span className="text-xs font-bold text-[#111827] dark:text-[#F9FAFB]">{org.name}</span>
                   {isSelected && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#2563EB] text-white font-medium">
                       Active
                     </span>
                   )}
                 </div>
-                <div className="text-[11px] text-[#6B7280] mt-1">
+                <div className="text-[11px] text-[#6B7280] dark:text-[#9CA3AF] mt-1">
                   Single Limit: ${org.single_transaction_limit?.toFixed(2)} &bull; {org.environment}
                 </div>
               </div>
@@ -176,14 +180,14 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
       </div>
 
       {/* Spending Governance Form */}
-      <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-sm space-y-5">
-        <div className="flex items-center space-x-2 text-sm font-semibold text-[#111827]">
-          <Sliders className="w-4 h-4 text-[#2563EB]" />
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E5E7EB] dark:border-[#1F2937] p-5 shadow-xs space-y-5">
+        <div className="flex items-center space-x-2 text-sm font-semibold text-[#111827] dark:text-[#F9FAFB]">
+          <Sliders className="w-4 h-4 text-[#2563EB] dark:text-[#60A5FA]" />
           <span>Spending Governance & Caps</span>
         </div>
 
         {saveSuccess && (
-          <div className="p-3 bg-[#F0FDF4] border border-[#DCFCE7] text-xs text-[#15803D] rounded-lg flex items-center space-x-2">
+          <div className="p-3 bg-[#F0FDF4] dark:bg-[#14532D]/30 border border-[#DCFCE7] dark:border-[#15803D]/40 text-xs text-[#15803D] dark:text-[#4ADE80] rounded-lg flex items-center space-x-2">
             <CheckCircle className="w-4 h-4 shrink-0" />
             <span>Workspace policy caps updated successfully!</span>
           </div>
@@ -192,34 +196,35 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
         <form onSubmit={handleSaveSettings} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-[#374151] block mb-1.5">
+              <label className="text-xs font-semibold text-[#374151] dark:text-[#D1D5DB] block mb-1.5">
                 Workspace Name
               </label>
               <input
                 type="text"
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] dark:border-[#374151] bg-white dark:bg-[#0B0F19] text-[#111827] dark:text-[#F9FAFB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[#374151] block mb-1.5">
+              <label className="text-xs font-semibold text-[#374151] dark:text-[#D1D5DB] block mb-1.5">
                 Default Currency
               </label>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none bg-white"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] dark:border-[#374151] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none bg-white dark:bg-[#0B0F19] text-[#111827] dark:text-[#F9FAFB]"
               >
                 <option value="USD">USD ($)</option>
+                <option value="INR">INR (₹)</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[#374151] block mb-1.5">
+              <label className="text-xs font-semibold text-[#374151] dark:text-[#D1D5DB] block mb-1.5">
                 Single Transaction Cap ($)
               </label>
               <input
@@ -227,15 +232,15 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
                 step="0.01"
                 value={singleLimit}
                 onChange={(e) => setSingleLimit(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] dark:border-[#374151] bg-white dark:bg-[#0B0F19] text-[#111827] dark:text-[#F9FAFB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
               />
-              <span className="text-[10px] text-[#6B7280] mt-1 block">
+              <span className="text-[10px] text-[#6B7280] dark:text-[#9CA3AF] mt-1 block">
                 Purchases exceeding this amount are blocked automatically by Guardrail #1.
               </span>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[#374151] block mb-1.5">
+              <label className="text-xs font-semibold text-[#374151] dark:text-[#D1D5DB] block mb-1.5">
                 Daily Spend Limit ($)
               </label>
               <input
@@ -243,9 +248,9 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
                 step="0.01"
                 value={dailyLimit}
                 onChange={(e) => setDailyLimit(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] dark:border-[#374151] bg-white dark:bg-[#0B0F19] text-[#111827] dark:text-[#F9FAFB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
               />
-              <span className="text-[10px] text-[#6B7280] mt-1 block">
+              <span className="text-[10px] text-[#6B7280] dark:text-[#9CA3AF] mt-1 block">
                 Rolling 24-hour velocity ceiling across all agents in this organization.
               </span>
             </div>
@@ -255,7 +260,7 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-medium rounded-lg shadow-sm flex items-center space-x-1.5 transition-colors cursor-pointer"
+              className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-medium rounded-lg shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{saving ? 'Saving...' : 'Save Policy Changes'}</span>
@@ -265,24 +270,24 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
       </div>
 
       {/* Payment Gateway Authorization */}
-      <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-sm space-y-4">
-        <div className="flex items-center space-x-2 text-sm font-semibold text-[#111827]">
-          <CreditCard className="w-4 h-4 text-[#2563EB]" />
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-[#E5E7EB] dark:border-[#1F2937] p-5 shadow-xs space-y-4">
+        <div className="flex items-center space-x-2 text-sm font-semibold text-[#111827] dark:text-[#F9FAFB]">
+          <CreditCard className="w-4 h-4 text-[#2563EB] dark:text-[#60A5FA]" />
           <span>Payment Gateway Connection</span>
         </div>
 
-        <p className="text-xs text-[#6B7280] leading-relaxed">
+        <p className="text-xs text-[#6B7280] dark:text-[#9CA3AF] leading-relaxed">
           Connect your organization's PayPal merchant account. Payments are settled using official PayPal Orders v2 APIs.
         </p>
 
-        <div className="p-3.5 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-xs space-y-2">
+        <div className="p-3.5 rounded-lg bg-[#F8FAFC] dark:bg-[#0B0F19] border border-[#E2E8F0] dark:border-[#1F2937] text-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-[#111827]">Zero-Trust Security Guarantee:</span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DCFCE7] text-[#15803D]">
+            <span className="font-semibold text-[#111827] dark:text-[#F9FAFB]">Zero-Trust Security Guarantee:</span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#DCFCE7] dark:bg-[#14532D]/40 text-[#15803D] dark:text-[#4ADE80]">
               Secured
             </span>
           </div>
-          <ul className="text-[11px] text-[#64748B] space-y-1 list-disc list-inside">
+          <ul className="text-[11px] text-[#64748B] dark:text-[#94A3B8] space-y-1 list-disc list-inside">
             <li>Never request or store raw card numbers, CVVs, or online banking passwords.</li>
             <li>Platform PayPal Client Secrets remain protected exclusively on the backend.</li>
             <li>All checkout disbursements require dual-custody approval before capture.</li>
@@ -290,7 +295,7 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
         </div>
 
         {connectSuccess && (
-          <div className="p-3 bg-[#F0FDF4] border border-[#DCFCE7] text-xs text-[#15803D] rounded-lg flex items-center space-x-2">
+          <div className="p-3 bg-[#F0FDF4] dark:bg-[#14532D]/30 border border-[#DCFCE7] dark:border-[#15803D]/40 text-xs text-[#15803D] dark:text-[#4ADE80] rounded-lg flex items-center space-x-2">
             <CheckCircle className="w-4 h-4 shrink-0" />
             <span>Payment account settings updated!</span>
           </div>
@@ -299,25 +304,25 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
         <form onSubmit={handleConnectPayment} className="space-y-4 pt-1">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-[#374151] block mb-1.5">
+              <label className="text-xs font-semibold text-[#374151] dark:text-[#D1D5DB] block mb-1.5">
                 Authorized Finance / Merchant Email
               </label>
               <input
                 type="email"
                 value={paypalEmail}
                 onChange={(e) => setPaypalEmail(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] dark:border-[#374151] bg-white dark:bg-[#0B0F19] text-[#111827] dark:text-[#F9FAFB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-[#374151] block mb-1.5">
+              <label className="text-xs font-semibold text-[#374151] dark:text-[#D1D5DB] block mb-1.5">
                 Environment Rail
               </label>
               <select
                 value={paymentEnv}
                 onChange={(e) => setPaymentEnv(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none bg-white"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-[#D1D5DB] dark:border-[#374151] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none bg-white dark:bg-[#0B0F19] text-[#111827] dark:text-[#F9FAFB]"
               >
                 <option value="sandbox">PayPal Sandbox (Testing & Validation)</option>
                 <option value="live">PayPal Live (Production Commerce)</option>
@@ -327,7 +332,7 @@ export function OrganizationSettingsPage({ onOrgUpdated }) {
 
           <button
             type="submit"
-            className="px-4 py-2 bg-[#0070BA] hover:bg-[#005EA6] text-white text-xs font-semibold rounded-lg shadow-sm flex items-center space-x-1.5 transition-colors cursor-pointer"
+            className="px-4 py-2 bg-[#0070BA] hover:bg-[#005EA6] text-white text-xs font-semibold rounded-lg shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
           >
             <CreditCard className="w-3.5 h-3.5" />
             <span>Update Payment Rails</span>

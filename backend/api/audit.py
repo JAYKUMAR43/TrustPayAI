@@ -9,6 +9,7 @@ from backend.models.audit import AuditLogModel
 from backend.schemas.audit import AuditLogResponse
 from backend.schemas.common import PaginatedResponse
 from backend.services.audit_service import audit_service
+from backend.security.rbac import TenantContext, get_current_tenant_context, require_roles, UserRole
 
 router = APIRouter(tags=["audit"])
 
@@ -19,10 +20,31 @@ async def list_audit_logs(
     limit: int = Query(50, ge=1, le=100),
     event_type: Optional[str] = Query(None),
     actor: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    tenant_context: TenantContext = Depends(get_current_tenant_context)
 ):
     query = select(AuditLogModel)
     count_query = select(func.count(AuditLogModel.block_index))
+
+    # Tenant scoping
+    if tenant_context.is_organization and tenant_context.organization_id:
+        query = query.where(
+            (AuditLogModel.organization_id == tenant_context.organization_id) |
+            (AuditLogModel.organization_id.is_(None))
+        )
+        count_query = count_query.where(
+            (AuditLogModel.organization_id == tenant_context.organization_id) |
+            (AuditLogModel.organization_id.is_(None))
+        )
+    elif tenant_context.is_individual:
+        query = query.where(
+            (AuditLogModel.user_id == tenant_context.user_id) |
+            (AuditLogModel.organization_id.is_(None))
+        )
+        count_query = count_query.where(
+            (AuditLogModel.user_id == tenant_context.user_id) |
+            (AuditLogModel.organization_id.is_(None))
+        )
 
     if event_type:
         query = query.where(AuditLogModel.event_type == event_type.upper())

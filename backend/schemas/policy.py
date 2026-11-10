@@ -9,6 +9,7 @@ class PolicyCreateRequest(BaseModel):
     rule_value: Optional[Dict[str, Any]] = Field(default=None, description="JSON rule parameters")
     rules: Optional[Any] = Field(default=None)
     is_active: bool = Field(default=True)
+    organization_id: Optional[str] = Field(default=None)
 
     @model_validator(mode="before")
     @classmethod
@@ -28,6 +29,7 @@ class PolicyResponse(BaseModel):
     description: str
     rule_value: Dict[str, Any]
     is_active: bool
+    organization_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
