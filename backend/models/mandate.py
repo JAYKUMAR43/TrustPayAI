@@ -21,6 +21,11 @@ class AuthorizationMandateModel(Base):
     product_category = Column(String(64), nullable=True)
     payment_purpose = Column(String(256), nullable=True)
     
+    # Multi-tenant scoping
+    tenant_type = Column(String(32), default="ORGANIZATION", index=True)
+    organization_id = Column(String(36), nullable=True, index=True)
+    user_id = Column(String(36), nullable=True, index=True)
+
     signature = Column(String(128), nullable=False) # HMAC-SHA256
     
     is_executed = Column(Boolean, default=False, index=True)

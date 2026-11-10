@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from backend.api import agents, procurement, transactions, policies, risk, audit, dashboard
+from backend.api import agents, procurement, transactions, policies, risk, audit, dashboard, organizations, auth, webhooks
 from backend.routers import mandates, payments
 from backend.paypal.mcp_adapter import paypal_mcp_adapter
 from backend.config import settings
@@ -7,6 +7,8 @@ from backend.config import settings
 api_router = APIRouter()
 
 # Mount all core modules
+api_router.include_router(auth.router)
+api_router.include_router(webhooks.router)
 api_router.include_router(agents.router)
 api_router.include_router(procurement.router)
 api_router.include_router(transactions.router)
@@ -16,6 +18,7 @@ api_router.include_router(audit.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(mandates.router)
 api_router.include_router(payments.router)
+api_router.include_router(organizations.router)
 
 # PayPal MCP Control Endpoints
 @api_router.get("/mcp/tools", tags=["mcp"])

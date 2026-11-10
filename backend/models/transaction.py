@@ -19,6 +19,12 @@ class TransactionModel(Base):
     paypal_order_id = Column(String(64), nullable=True, index=True)
     created_timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
+    # Multi-tenant and Payment Mode fields
+    tenant_type = Column(String(32), nullable=False, default="ORGANIZATION", index=True) # INDIVIDUAL or ORGANIZATION
+    organization_id = Column(String(36), nullable=True, index=True)
+    user_id = Column(String(36), nullable=True, index=True)
+    payment_mode = Column(String(32), nullable=False, default="STANDARD_PAYPAL", index=True) # STANDARD_PAYPAL or CONNECTED_MERCHANT
+
     # Contextual identifiers
     procurement_id = Column(String(36), nullable=True, index=True)
     mandate_id = Column(String(64), nullable=True, index=True)

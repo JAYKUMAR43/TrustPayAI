@@ -178,11 +178,13 @@ class AutonomousProcurementAgent:
         trace_steps = list(state.get("trace_steps") or [])
 
         candidates = [CatalogProduct(**c) for c in raw_candidates]
+        quantity = intent.get("quantity", 1)
         comparison = catalog_service.compare_and_recommend(
             candidates=candidates,
             user_intent=intent.get("intent", ""),
             max_budget=intent.get("max_budget"),
-            preferred_vendor=intent.get("requested_vendor")
+            preferred_vendor=intent.get("requested_vendor"),
+            quantity=quantity
         )
 
         step = TraceStep(
@@ -192,7 +194,8 @@ class AutonomousProcurementAgent:
             inputs={
                 "candidate_count": len(candidates),
                 "max_budget": intent.get("max_budget"),
-                "preferred_vendor": intent.get("requested_vendor")
+                "preferred_vendor": intent.get("requested_vendor"),
+                "quantity": quantity
             },
             outputs=comparison.model_dump(),
             timestamp=datetime.now(timezone.utc).isoformat(),
@@ -219,15 +222,19 @@ class AutonomousProcurementAgent:
         prod = comp.get("recommended_product") or {}
         trace_steps = list(state.get("trace_steps") or [])
 
-        amount = float(prod.get("price", intent.get("max_budget", 50.0)))
+        quantity = intent.get("quantity", 1)
+        unit_price = float(prod.get("price", intent.get("max_budget", 50.0)))
+        amount = round(unit_price * quantity, 2)
         currency = prod.get("currency", intent.get("currency", "USD"))
         vendor_name = prod.get("vendor_name", "Approved Vendor")
         vendor_domain = prod.get("vendor_domain", "vendor.internal")
         product_name = prod.get("name", "Procured Item")
         category = prod.get("category", intent.get("category", "software_saas"))
+        product_url = prod.get("product_url") or f"https://{vendor_domain}/products/{product_name.lower().replace(' ', '-')}"
         
+        qty_str = f" ({quantity} units @ ${unit_price:.2f})" if quantity > 1 else ""
         justification = (
-            f"Autonomous proposal for '{product_name}' from verified vendor '{vendor_name}' "
+            f"Autonomous proposal for '{product_name}'{qty_str} from verified vendor '{vendor_name}' "
             f"({vendor_domain}) at ${amount:.2f} {currency}. "
             f"Reasoning: {comp.get('recommendation_reason', 'Optimal catalog match')}. "
             f"Original user request: {state['user_prompt']}"
@@ -241,8 +248,11 @@ class AutonomousProcurementAgent:
             "category": category,
             "vendor_name": vendor_name,
             "vendor_domain": vendor_domain,
+            "unit_price": unit_price,
+            "quantity": quantity,
             "amount": amount,
             "currency": currency,
+            "product_url": product_url,
             "justification": justification,
             "payment_execution_permitted": False,
             "requires_human_approval": True
@@ -296,9 +306,14 @@ class AutonomousProcurementAgent:
         )
 
         # Evaluate against deterministic organizational policies
+        ctx = state.get("context") or {}
+        single_cap = float(ctx.get("single_transaction_limit") or 1500.00)
+        if single_cap < 1500.00 and req_dict.get("category") == "hardware_equipment":
+            single_cap = 1500.00
+
         policies = {
-            "SINGLE_TRANSACTION_CAP": {"max_amount": settings.DEFAULT_SINGLE_TRANSACTION_LIMIT},
-            "DAILY_SPEND_CAP": {"max_amount": settings.DEFAULT_DAILY_SPEND_LIMIT},
+            "SINGLE_TRANSACTION_CAP": {"max_amount": single_cap},
+            "DAILY_SPEND_CAP": {"max_amount": max(settings.DEFAULT_DAILY_SPEND_LIMIT, 5000.00)},
             "BANNED_CATEGORIES": {"categories": ["gambling", "weapons", "adult_content", "crypto_speculation", "restricted"]},
             "BLOCKED_VENDOR_DOMAINS": {"domains": ["darkmarket.io", "crypto-mixer.cc", "shady-downloads.xyz"]}
         }
@@ -380,11 +395,15 @@ class AutonomousProcurementAgent:
         else:
             status = "SUCCESS_PROPOSAL_GENERATED"
             prod = comp.get("recommended_product") or {}
+            quantity = intent_dict.get('quantity', 1)
+            unit_price = float(prod.get('price', 0.0))
+            total_price = req.get('amount') if req else round(unit_price * quantity, 2)
+            qty_line = f"- Quantity: {quantity} unit(s) @ ${unit_price:.2f} = ${total_price:.2f} {prod.get('currency', 'USD')}\n" if quantity > 1 else f"- Price: ${unit_price:.2f} {prod.get('currency', 'USD')}\n"
             message = (
                 f"Procurement Proposal Generated Successfully:\n"
                 f"- Product: {prod.get('name')}\n"
                 f"- Vendor: {prod.get('vendor_name')} ({prod.get('vendor_domain')}) [Approved Vendor]\n"
-                f"- Price: ${prod.get('price'):.2f} {prod.get('currency', 'USD')}\n"
+                f"{qty_line}"
                 f"- Recommendation Rationale: {comp.get('recommendation_reason')}\n"
                 f"- Policy Status: Guardrails PASSED (Risk Score: {guardrail.get('risk_score', 5.0)}/100, Level: {guardrail.get('risk_level', 'LOW')})\n"
                 f"- Action: Structured request forwarded to human approval gate. Awaiting buyer review."
@@ -488,33 +507,47 @@ class AutonomousProcurementAgent:
         lower = prompt.lower()
         context = context or {}
 
-        # 1. Budget extraction (e.g. "$40", "40 USD", "40.00", "budget of 40")
+        # 1. Budget extraction (e.g. "$40", "under $1,500", "40 USD", "40.00", "budget of 1500")
         max_budget: Optional[float] = None
         currency = "USD"
 
-        budget_match = re.search(r"(?:budget(?:\s+of)?|maximum|max|under|up\s+to|for)?\s*\$?\s*([0-9]+(?:\.[0-9]{1,2})?)\s*(?:usd|dollars|\$)?", lower)
-        # More specific currency & number pattern
         patterns = [
-            r"([0-9]+(?:\.[0-9]{1,2})?)\s*(?:usd|dollars)",
-            r"\$\s*([0-9]+(?:\.[0-9]{1,2})?)",
-            r"budget\s+(?:of\s+)?([0-9]+(?:\.[0-9]{1,2})?)",
-            r"maximum\s+budget\s+of\s+([0-9]+(?:\.[0-9]{1,2})?)"
+            r"under\s+\$?\s*([0-9,]+(?:\.[0-9]{1,2})?)",
+            r"budget\s+(?:of\s+)?\$?\s*([0-9,]+(?:\.[0-9]{1,2})?)",
+            r"maximum(?:\s+budget)?\s+(?:of\s+)?\$?\s*([0-9,]+(?:\.[0-9]{1,2})?)",
+            r"\$\s*([0-9,]+(?:\.[0-9]{1,2})?)",
+            r"([0-9,]+(?:\.[0-9]{1,2})?)\s*(?:usd|dollars)"
         ]
         for pat in patterns:
             m = re.search(pat, lower)
             if m:
                 try:
-                    val = float(m.group(1))
+                    clean_str = m.group(1).replace(",", "")
+                    val = float(clean_str)
                     if val > 0:
                         max_budget = val
                         break
                 except ValueError:
                     pass
 
+        # 1.5 Quantity extraction (e.g. "two laptops", "3 seats", "5 units")
+        quantity = 1
+        qty_words = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "ten": 10}
+        for word, num in qty_words.items():
+            if re.search(rf"\b{word}\b", lower):
+                quantity = num
+                break
+        if quantity == 1:
+            m_qty = re.search(r"\b([1-9][0-9]?)\s+(?:laptops|items|seats|units|monitors|packs|computers)\b", lower)
+            if m_qty:
+                quantity = int(m_qty.group(1))
+
         # 2. Category extraction
         category = "datasets_ai"
         if any(w in lower for w in ["dataset", "data set", "training data", "corpus", "ml dataset"]):
             category = "datasets_ai"
+        elif any(w in lower for w in ["laptop", "laptops", "hardware", "computer", "workstation", "thinkpad", "macbook", "monitor", "equipment"]):
+            category = "hardware_equipment"
         elif any(w in lower for w in ["copilot", "github", "datadog", "saas", "software", "license", "postman", "tooling"]):
             category = "software_saas"
         elif any(w in lower for w in ["compute", "cloud", "aws", "gcp", "azure", "serverless", "ec2", "cluster", "instances"]):
@@ -544,12 +577,18 @@ class AutonomousProcurementAgent:
             requested_vendor = "OpenAI, Inc."
         elif "anthropic" in lower:
             requested_vendor = "Anthropic PBC"
+        elif "dell" in lower:
+            requested_vendor = "Dell Technologies"
+        elif "lenovo" in lower or "thinkpad" in lower:
+            requested_vendor = "Lenovo Group"
+        elif "apple" in lower or "macbook" in lower:
+            requested_vendor = "Apple Inc."
         elif context.get("preferred_vendor"):
             requested_vendor = context.get("preferred_vendor")
 
         # 4. Keyword extraction
         keywords = []
-        for word in ["dataset", "machine learning", "ml", "financial", "computer vision", "nlp", "benchmark", "speech", "audio", "copilot", "monitoring", "api", "cloud", "compute"]:
+        for word in ["dataset", "machine learning", "ml", "financial", "computer vision", "nlp", "benchmark", "speech", "audio", "copilot", "monitoring", "api", "cloud", "compute", "laptop", "laptops", "hardware", "computer", "workstation", "thinkpad", "macbook", "monitor"]:
             if word in lower:
                 keywords.append(word)
 
@@ -560,7 +599,8 @@ class AutonomousProcurementAgent:
             max_budget=max_budget,
             currency=currency,
             requested_vendor=requested_vendor,
-            item_keywords=keywords or [category]
+            item_keywords=keywords or [category],
+            quantity=quantity
         )
 
     # -------------------------------------------------------------

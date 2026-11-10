@@ -25,12 +25,14 @@ from backend.services.policy_service import policy_service
 from backend.services.audit_service import audit_service
 from backend.services.catalog_service import catalog_service
 from backend.services.websocket_manager import ws_manager
+from backend.security.rbac import TenantContext, get_current_tenant_context
 
 router = APIRouter(prefix="/api/procurement", tags=["procurement"])
 
 @router.post("/request", response_model=ProcurementResponse, status_code=201)
 async def submit_procurement_request(
     payload: ProcurementSubmitRequest,
+    tenant_context: TenantContext = Depends(get_current_tenant_context),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -100,6 +102,11 @@ async def submit_procurement_request(
     policies = await policy_service.get_policy_dict(db)
     policy_passed, violations, warnings = await policy_agent.evaluate_purchase(purchase_req_adapter, policies, db)
 
+    # Deterministic vendor blacklist check
+    if vendor.status == "BLACKLISTED":
+        policy_passed = False
+        violations.append(f"Restricted Merchant: Vendor domain '{vendor.domain}' is BLACKLISTED.")
+
     # 4. Multi-Factor Risk Assessment
     risk_score, risk_level, risk_factors = await risk_engine.analyze_risk(purchase_req_adapter, db)
 
@@ -145,6 +152,10 @@ async def submit_procurement_request(
             currency=payload.currency
         )
 
+        t_type = tenant_context.account_type
+        org_id = tenant_context.organization_id if tenant_context.is_organization else None
+        u_id = tenant_context.user_id
+
         mandate_model = AuthorizationMandateModel(
             mandate_id=mandate_dict["mandate_id"],
             request_id=request_id,
@@ -155,11 +166,18 @@ async def submit_procurement_request(
             expires_at=mandate_dict["expires_at"],
             max_authorized_amount=mandate_dict["max_authorized_amount"],
             currency=mandate_dict["currency"],
-            signature=mandate_dict["signature"]
+            signature=mandate_dict["signature"],
+            tenant_type=t_type,
+            organization_id=org_id,
+            user_id=u_id
         )
         db.add(mandate_model)
 
     # 6. Create Procurement Request Record
+    t_type = tenant_context.account_type
+    org_id = tenant_context.organization_id if tenant_context.is_organization else None
+    u_id = tenant_context.user_id
+
     procurement_model = ProcurementRequestModel(
         id=request_id,
         agent_id=payload.agent_id,
@@ -172,7 +190,11 @@ async def submit_procurement_request(
         status=req_status,
         status_reason=req_status_reason,
         risk_score=risk_score,
-        mandate_id=mandate_model.mandate_id if mandate_model else None
+        mandate_id=mandate_model.mandate_id if mandate_model else None,
+        tenant_type=t_type,
+        organization_id=org_id,
+        user_id=u_id,
+        payment_mode="STANDARD_PAYPAL"
     )
     db.add(procurement_model)
 
@@ -209,7 +231,11 @@ async def submit_procurement_request(
         approval_status=approval_status,
         paypal_order_id=None,
         procurement_id=request_id,
-        mandate_id=mandate_model.mandate_id if mandate_model else None
+        mandate_id=mandate_model.mandate_id if mandate_model else None,
+        tenant_type=t_type,
+        organization_id=org_id,
+        user_id=u_id,
+        payment_mode="STANDARD_PAYPAL"
     )
     db.add(transaction_model)
 
@@ -261,23 +287,59 @@ async def submit_procurement_request(
 
     return ProcurementResponse.model_validate(procurement_model)
 
-@router.get("/requests", response_model=PaginatedResponse[ProcurementResponse])
-async def list_procurement_requests(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    agent_id: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db)
+async def query_procurement_records(
+    db: AsyncSession,
+    tenant_context: TenantContext,
+    skip: int = 0,
+    limit: int = 50,
+    status: Optional[str] = None,
+    agent_id: Optional[str] = None
 ):
+    """
+    Core database query helper for procurement requests.
+    Enforces multi-tenant isolation safely without FastAPI parameter coupling.
+    """
     query = select(ProcurementRequestModel)
     count_query = select(func.count(ProcurementRequestModel.id))
 
-    if status:
-        query = query.where(ProcurementRequestModel.status == status.upper())
-        count_query = count_query.where(ProcurementRequestModel.status == status.upper())
-    if agent_id:
-        query = query.where(ProcurementRequestModel.agent_id == agent_id)
-        count_query = count_query.where(ProcurementRequestModel.agent_id == agent_id)
+    # Multi-tenant isolation enforcement
+    if tenant_context.is_individual:
+        # Individual users only access personal data
+        query = query.where(
+            (ProcurementRequestModel.user_id == tenant_context.user_id) |
+            (ProcurementRequestModel.tenant_type == "INDIVIDUAL") |
+            (ProcurementRequestModel.organization_id.is_(None))
+        )
+        count_query = count_query.where(
+            (ProcurementRequestModel.user_id == tenant_context.user_id) |
+            (ProcurementRequestModel.tenant_type == "INDIVIDUAL") |
+            (ProcurementRequestModel.organization_id.is_(None))
+        )
+    elif tenant_context.is_organization:
+        # Organization workspace isolation
+        query = query.where(
+            ProcurementRequestModel.tenant_type == "ORGANIZATION",
+            ProcurementRequestModel.organization_id == tenant_context.organization_id
+        )
+        count_query = count_query.where(
+            ProcurementRequestModel.tenant_type == "ORGANIZATION",
+            ProcurementRequestModel.organization_id == tenant_context.organization_id
+        )
+        # Employees only view their own submitted procurement requests
+        if tenant_context.role == "EMPLOYEE":
+            query = query.where(ProcurementRequestModel.user_id == tenant_context.user_id)
+            count_query = count_query.where(ProcurementRequestModel.user_id == tenant_context.user_id)
+
+    # Sanitize filter inputs
+    clean_status = status if (status and isinstance(status, str)) else None
+    clean_agent_id = agent_id if (agent_id and isinstance(agent_id, str)) else None
+
+    if clean_status:
+        query = query.where(ProcurementRequestModel.status == clean_status.upper())
+        count_query = count_query.where(ProcurementRequestModel.status == clean_status.upper())
+    if clean_agent_id:
+        query = query.where(ProcurementRequestModel.agent_id == clean_agent_id)
+        count_query = count_query.where(ProcurementRequestModel.agent_id == clean_agent_id)
 
     total_res = await db.execute(count_query)
     total = total_res.scalar() or 0
@@ -285,6 +347,25 @@ async def list_procurement_requests(
     query = query.offset(skip).limit(limit).order_by(desc(ProcurementRequestModel.created_at))
     res = await db.execute(query)
     requests = res.scalars().all()
+    return total, requests
+
+@router.get("/requests", response_model=PaginatedResponse[ProcurementResponse])
+async def list_procurement_requests(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    status: Optional[str] = Query(None),
+    agent_id: Optional[str] = Query(None),
+    tenant_context: TenantContext = Depends(get_current_tenant_context),
+    db: AsyncSession = Depends(get_db)
+):
+    total, requests = await query_procurement_records(
+        db=db,
+        tenant_context=tenant_context,
+        skip=skip,
+        limit=limit,
+        status=status,
+        agent_id=agent_id
+    )
 
     return PaginatedResponse(
         total=total,
@@ -298,20 +379,28 @@ async def list_procurement_requests(
 async def get_history_alias(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    status: Optional[str] = None,
+    status: Optional[str] = Query(None),
+    tenant_context: TenantContext = Depends(get_current_tenant_context),
     db: AsyncSession = Depends(get_db)
 ):
-    paginated = await list_procurement_requests(skip=skip, limit=limit, status=status, db=db)
-    # Map to frontend purchase format
+    total, requests = await query_procurement_records(
+        db=db,
+        tenant_context=tenant_context,
+        skip=skip,
+        limit=limit,
+        status=status,
+        agent_id=None
+    )
+    # Map to frontend purchase format safely
     return [
         {
             "id": r.id,
-            "agent_id": r.agent_id,
-            "agent_name": r.agent_id.replace("_", " ").title(),
+            "agent_id": r.agent_id or "agent_procurement",
+            "agent_name": (r.agent_id or "Autonomous Agent").replace("_", " ").title(),
             "item_name": r.product_name,
             "category": r.category,
-            "vendor_name": r.vendor_id,
-            "vendor_domain": r.vendor_id.replace("vendor_", "").replace("_", "."),
+            "vendor_name": r.vendor_id or "Vendor",
+            "vendor_domain": (r.vendor_id or "vendor_merchant").replace("vendor_", "").replace("_", "."),
             "amount": r.amount,
             "currency": r.currency,
             "justification": r.justification,
@@ -319,10 +408,10 @@ async def get_history_alias(
             "status_reason": r.status_reason,
             "risk_score": r.risk_score,
             "mandate_id": r.mandate_id,
-            "created_at": r.created_at.isoformat(),
-            "updated_at": r.updated_at.isoformat()
+            "created_at": r.created_at.isoformat() if r.created_at else "",
+            "updated_at": r.updated_at.isoformat() if r.updated_at else ""
         }
-        for r in paginated.items
+        for r in requests
     ]
 
 @router.get("/scenarios")

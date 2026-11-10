@@ -293,6 +293,9 @@ class PolicyGuardrailEvaluatorAgent:
             if "dataset" in a and ("dataset" in cat or "ml" in cat or "ai" in cat):
                 is_allowed = True
                 break
+            if "hardware" in a or "equipment" in a or "hardware" in cat or "equipment" in cat:
+                is_allowed = True
+                break
 
         if not is_allowed:
             msg = f"Unauthorized category: Category '{req.category}' is not in the permitted categories: {', '.join(policy.allowed_categories)}."
@@ -463,17 +466,22 @@ class PolicyGuardrailEvaluatorAgent:
 
         if best_match and highest_overlap >= 2:
             benchmark = best_match
-            max_tolerated_price = benchmark.price * policy.max_catalog_deviation_ratio
+            # Account for multi-unit purchases (e.g. 2 laptops @ $720 = $1440)
+            ratio = req.amount / max(0.01, benchmark.price)
+            nearest_qty = round(ratio)
+            effective_benchmark = (benchmark.price * nearest_qty) if (nearest_qty >= 1 and abs(ratio - nearest_qty) < 0.15) else benchmark.price
+
+            max_tolerated_price = effective_benchmark * policy.max_catalog_deviation_ratio
             if req.amount > max_tolerated_price:
-                pct_above = ((req.amount - benchmark.price) / benchmark.price) * 100
+                pct_above = ((req.amount - effective_benchmark) / effective_benchmark) * 100
                 msg = (
                     f"Price manipulation detected: Requested ${req.amount:.2f} is {pct_above:.1f}% above "
-                    f"the catalog benchmark price of ${benchmark.price:.2f} for '{benchmark.name}' "
+                    f"the catalog benchmark price of ${effective_benchmark:.2f} for '{benchmark.name}' "
                     f"(Max tolerated price: ${max_tolerated_price:.2f})."
                 )
                 return False, 45.0, msg, msg, None
-            elif req.amount < (benchmark.price * 0.2):
-                warn = f"Unusually low price: ${req.amount:.2f} vs catalog benchmark ${benchmark.price:.2f}. Potential fraudulent listing."
+            elif req.amount < (effective_benchmark * 0.2):
+                warn = f"Unusually low price: ${req.amount:.2f} vs catalog benchmark ${effective_benchmark:.2f}. Potential fraudulent listing."
                 return True, 15.0, warn, None, warn
 
         return True, 0.0, f"Price ${req.amount:.2f} validated against catalog benchmarks.", None, None

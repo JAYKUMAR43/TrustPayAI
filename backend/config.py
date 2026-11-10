@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     MANDATE_EXPIRATION_MINUTES: int = 30
     
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+    CORS_ORIGINS: str = "https://trust-pay-ai-five.vercel.app,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
     
     @property
     def cors_origins_list(self) -> List[str]:

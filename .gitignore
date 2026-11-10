@@ -37,12 +37,17 @@ ENV/
 *.db
 *.sqlite3
 *.sqlite
+trustpay_backup.json
+
+# Media / Big Assets
+*.mp4
 
 # Testing & Coverage
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
+scripts/audit_results.json
 
 # Node / Frontend
 node_modules/

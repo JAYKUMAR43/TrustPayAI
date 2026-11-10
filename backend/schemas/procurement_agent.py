@@ -17,6 +17,7 @@ class ExtractedIntent(BaseModel):
     currency: str = "USD"
     requested_vendor: Optional[str] = None
     item_keywords: List[str] = Field(default_factory=list)
+    quantity: int = 1
 
 class CatalogProduct(BaseModel):
     product_id: str
@@ -30,6 +31,7 @@ class CatalogProduct(BaseModel):
     description: str
     rating: float = 5.0
     tags: List[str] = Field(default_factory=list)
+    product_url: Optional[str] = None
 
     @field_validator("price")
     @classmethod

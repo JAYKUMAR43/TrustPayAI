@@ -13,6 +13,7 @@ from backend.models.audit import AuditLogModel
 from backend.schemas.transaction import TransactionResponse
 from backend.schemas.common import PaginatedResponse
 from backend.security.crypto_engine import crypto_engine
+from backend.security.rbac import TenantContext, get_current_tenant_context
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -23,10 +24,36 @@ async def list_transactions(
     status: Optional[str] = Query(None, description="Filter by transaction status"),
     agent_id: Optional[str] = Query(None, description="Filter by requesting agent"),
     vendor_id: Optional[str] = Query(None, description="Filter by merchant vendor"),
+    tenant_context: TenantContext = Depends(get_current_tenant_context),
     db: AsyncSession = Depends(get_db)
 ):
     query = select(TransactionModel)
     count_query = select(func.count(TransactionModel.transaction_id))
+
+    # Multi-tenant isolation enforcement
+    if tenant_context.is_individual:
+        query = query.where(
+            (TransactionModel.user_id == tenant_context.user_id) |
+            (TransactionModel.tenant_type == "INDIVIDUAL") |
+            (TransactionModel.organization_id.is_(None))
+        )
+        count_query = count_query.where(
+            (TransactionModel.user_id == tenant_context.user_id) |
+            (TransactionModel.tenant_type == "INDIVIDUAL") |
+            (TransactionModel.organization_id.is_(None))
+        )
+    elif tenant_context.is_organization:
+        query = query.where(
+            TransactionModel.tenant_type == "ORGANIZATION",
+            TransactionModel.organization_id == tenant_context.organization_id
+        )
+        count_query = count_query.where(
+            TransactionModel.tenant_type == "ORGANIZATION",
+            TransactionModel.organization_id == tenant_context.organization_id
+        )
+        if tenant_context.role == "EMPLOYEE":
+            query = query.where(TransactionModel.user_id == tenant_context.user_id)
+            count_query = count_query.where(TransactionModel.user_id == tenant_context.user_id)
 
     if status:
         query = query.where(TransactionModel.transaction_status == status.upper())
@@ -55,11 +82,25 @@ async def list_transactions(
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 async def get_transaction_by_id(
     transaction_id: str,
+    tenant_context: TenantContext = Depends(get_current_tenant_context),
     db: AsyncSession = Depends(get_db)
 ):
-    res = await db.execute(
-        select(TransactionModel).where(TransactionModel.transaction_id == transaction_id)
-    )
+    query = select(TransactionModel).where(TransactionModel.transaction_id == transaction_id)
+    if tenant_context.is_individual:
+        query = query.where(
+            (TransactionModel.user_id == tenant_context.user_id) |
+            (TransactionModel.tenant_type == "INDIVIDUAL") |
+            (TransactionModel.organization_id.is_(None))
+        )
+    elif tenant_context.is_organization:
+        query = query.where(
+            TransactionModel.tenant_type == "ORGANIZATION",
+            TransactionModel.organization_id == tenant_context.organization_id
+        )
+        if tenant_context.role == "EMPLOYEE":
+            query = query.where(TransactionModel.user_id == tenant_context.user_id)
+
+    res = await db.execute(query)
     tx = res.scalar_one_or_none()
     if not tx:
         raise HTTPException(status_code=404, detail=f"Transaction with ID '{transaction_id}' not found")

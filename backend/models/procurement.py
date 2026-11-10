@@ -15,6 +15,12 @@ class ProcurementRequestModel(Base):
     currency = Column(String(3), nullable=False, default="USD")
     justification = Column(Text, nullable=False)
     
+    # Multi-tenant and Payment Mode fields
+    tenant_type = Column(String(32), nullable=False, default="ORGANIZATION", index=True) # INDIVIDUAL or ORGANIZATION
+    organization_id = Column(String(36), nullable=True, index=True)
+    user_id = Column(String(36), nullable=True, index=True)
+    payment_mode = Column(String(32), nullable=False, default="STANDARD_PAYPAL", index=True) # STANDARD_PAYPAL or CONNECTED_MERCHANT
+
     status = Column(String(32), nullable=False, default="PENDING_EVALUATION", index=True)
     status_reason = Column(Text, nullable=True)
     risk_score = Column(Float, nullable=True)

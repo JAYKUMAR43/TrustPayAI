@@ -21,7 +21,8 @@ class PolicyConfig(BaseModel):
         default_factory=lambda: [
             "Approved Data Portal", "Kaggle, Inc.", "Hugging Face, Inc.",
             "GitHub, Inc.", "Google Cloud", "Amazon Web Services",
-            "Datadog", "Anthropic PBC", "OpenAI, Inc.", "Postman, Inc."
+            "Datadog", "Anthropic PBC", "OpenAI, Inc.", "Postman, Inc.",
+            "Dell Technologies", "Lenovo Group", "Apple Inc.", "dell.com", "lenovo.com", "apple.com"
         ]
     )
     blocked_vendors: List[str] = Field(
@@ -36,7 +37,8 @@ class PolicyConfig(BaseModel):
     allowed_categories: List[str] = Field(
         default_factory=lambda: [
             "Software and Datasets", "software_saas", "datasets_ai",
-            "api_credits", "cloud_infrastructure", "developer_tooling"
+            "api_credits", "cloud_infrastructure", "developer_tooling",
+            "hardware_equipment", "hardware"
         ]
     )
     banned_categories: List[str] = Field(

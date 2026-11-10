@@ -14,6 +14,12 @@ class AuditLogModel(Base):
     entity_type = Column(String(32), nullable=True) # PROCUREMENT, TRANSACTION, MANDATE, POLICY, AGENT
     entity_id = Column(String(64), nullable=True, index=True)
     actor = Column(String(64), nullable=False, index=True)
+    
+    # Multi-tenant scoping
+    tenant_type = Column(String(32), default="ORGANIZATION", index=True)
+    organization_id = Column(String(36), nullable=True, index=True)
+    user_id = Column(String(36), nullable=True, index=True)
+
     details = Column(Text, nullable=False) # JSON payload
     prev_hash = Column(String(64), nullable=False)
     curr_hash = Column(String(64), nullable=False, index=True)

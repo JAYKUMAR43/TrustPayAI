@@ -153,6 +153,60 @@ INTERNAL_VENDOR_CATALOG: List[CatalogProduct] = [
         description="API credits for GPT-4o, embeddings and audio transcription endpoints.",
         rating=4.85,
         tags=["openai", "gpt-4", "api", "llm", "tokens", "credits"]
+    ),
+
+    # 5. Hardware Equipment & Developer Workstations
+    CatalogProduct(
+        product_id="prod_hw_001",
+        name="Dell Latitude 5440 Developer Laptop (16GB RAM, 512GB SSD)",
+        vendor_name="Dell Technologies",
+        vendor_domain="dell.com",
+        category="hardware_equipment",
+        price=720.00,
+        currency="USD",
+        is_approved_vendor=True,
+        description="Enterprise business laptop featuring 13th Gen Intel Core i5, 16GB DDR5 RAM, and Ubuntu/Windows.",
+        rating=4.88,
+        tags=["laptop", "laptops", "dell", "hardware", "computer", "workstation", "developer"]
+    ),
+    CatalogProduct(
+        product_id="prod_hw_002",
+        name="Lenovo ThinkPad T14s AMD Ryzen 7 (16GB RAM, 512GB SSD)",
+        vendor_name="Lenovo Group",
+        vendor_domain="lenovo.com",
+        category="hardware_equipment",
+        price=740.00,
+        currency="USD",
+        is_approved_vendor=True,
+        description="High-durability development workstation with AMD Ryzen 7 PRO processor and Rapid Charge.",
+        rating=4.85,
+        tags=["laptop", "laptops", "lenovo", "thinkpad", "hardware", "computer", "developer"]
+    ),
+    CatalogProduct(
+        product_id="prod_hw_003",
+        name="Apple MacBook Air 13-inch M3 (16GB Unified Memory)",
+        vendor_name="Apple Inc.",
+        vendor_domain="apple.com",
+        category="hardware_equipment",
+        price=1099.00,
+        currency="USD",
+        is_approved_vendor=True,
+        description="Apple M3 chip with 8-core CPU and 10-core GPU, 16GB unified memory, liquid retina display.",
+        rating=4.95,
+        tags=["laptop", "laptops", "macbook", "apple", "hardware", "computer", "developer"]
+    ),
+    CatalogProduct(
+        product_id="prod_hw_004",
+        name="Dell UltraSharp 27-inch 4K USB-C Hub Monitor",
+        vendor_name="Dell Technologies",
+        vendor_domain="dell.com",
+        category="hardware_equipment",
+        price=380.00,
+        currency="USD",
+        is_approved_vendor=True,
+        description="Color-accurate 4K IPS display with 90W USB-C power delivery and RJ45 ethernet pass-through.",
+        rating=4.9,
+        tags=["monitor", "display", "dell", "hardware", "screen", "developer"]
     )
 ]
 
@@ -216,12 +270,14 @@ class VendorCatalogService:
         candidates: List[CatalogProduct],
         user_intent: str,
         max_budget: Optional[float] = None,
-        preferred_vendor: Optional[str] = None
+        preferred_vendor: Optional[str] = None,
+        quantity: int = 1
     ) -> ProductComparisonResult:
         """
         Evaluates candidate products, validates prices against budget,
         selects the optimal product, and explains why it is recommended.
         """
+        qty = max(1, quantity)
         if not candidates:
             return ProductComparisonResult(
                 recommended_product=None,
@@ -231,15 +287,17 @@ class VendorCatalogService:
                 product_verified=False
             )
 
-        # Filter strictly within budget
-        affordable = [p for p in candidates if max_budget is None or p.price <= max_budget]
+        # Filter strictly within budget considering quantity
+        affordable = [p for p in candidates if max_budget is None or (p.price * qty) <= max_budget]
 
         if not affordable:
             lowest_price_prod = min(candidates, key=lambda p: p.price)
+            total_lowest = lowest_price_prod.price * qty
+            qty_str = f" for {qty} units" if qty > 1 else ""
             return ProductComparisonResult(
                 recommended_product=None,
                 considered_products=candidates,
-                recommendation_reason=f"Found {len(candidates)} matching item(s), but all exceed the maximum budget of ${max_budget:.2f}. Lowest priced option was '{lowest_price_prod.name}' at ${lowest_price_prod.price:.2f} {lowest_price_prod.currency}.",
+                recommendation_reason=f"Found {len(candidates)} matching item(s), but all exceed the maximum budget of ${max_budget:.2f}{qty_str}. Lowest priced option was '{lowest_price_prod.name}' at ${lowest_price_prod.price:.2f} each (${total_lowest:.2f} total).",
                 within_budget=False,
                 product_verified=True
             )
@@ -252,10 +310,11 @@ class VendorCatalogService:
             ]
             if vendor_matches:
                 chosen = min(vendor_matches, key=lambda p: p.price)
+                total_chosen = chosen.price * qty
+                qty_desc = f" ({qty} units @ ${chosen.price:.2f} = ${total_chosen:.2f} total)" if qty > 1 else f" at ${chosen.price:.2f}"
                 reason = (
                     f"Selected '{chosen.name}' from requested vendor '{chosen.vendor_name}'. "
-                    f"At ${chosen.price:.2f} {chosen.currency}, it fully satisfies user intent and remains strictly "
-                    f"within the ${max_budget:.2f} budget cap (Customer rating: {chosen.rating}/5.0)."
+                    f"Total cost: ${total_chosen:.2f} {chosen.currency}{qty_desc}, fully satisfying your requirements and staying within the ${max_budget:.2f} budget cap (Rating: {chosen.rating}/5.0)."
                 )
                 return ProductComparisonResult(
                     recommended_product=chosen,
@@ -267,12 +326,11 @@ class VendorCatalogService:
 
         # Best value choice (best combination of price within budget and rating)
         chosen = min(affordable, key=lambda p: (p.price / p.rating))
-        other_count = len(affordable) - 1
-        comp_summary = f"Compared {len(affordable)} qualified catalog option(s). " if other_count > 0 else ""
+        total_chosen = chosen.price * qty
+        qty_desc = f" ({qty} units @ ${chosen.price:.2f} = ${total_chosen:.2f} {chosen.currency})" if qty > 1 else f" at ${chosen.price:.2f} {chosen.currency}"
         reason = (
-            f"{comp_summary}Selected '{chosen.name}' from approved vendor '{chosen.vendor_name}' ({chosen.vendor_domain}). "
-            f"Priced at ${chosen.price:.2f} {chosen.currency}, offering optimal value within the budget cap "
-            f"(Verified approved vendor, quality rating: {chosen.rating}/5.0)."
+            f"Selected '{chosen.name}' from approved vendor '{chosen.vendor_name}' ({chosen.vendor_domain}). "
+            f"Total cost: ${total_chosen:.2f} {chosen.currency}{qty_desc}, offering optimal value within your budget cap (Approved vendor, rating: {chosen.rating}/5.0)."
         )
 
         return ProductComparisonResult(

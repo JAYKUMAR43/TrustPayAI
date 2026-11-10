@@ -37,10 +37,11 @@ app = FastAPI(
 )
 
 # CORS configuration supporting local dev and Vercel production domains
+# Never uses unrestricted wildcard '*' with allow_credentials=True
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list if settings.ENVIRONMENT == "production" else ["*"],
-    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$" if settings.ENVIRONMENT == "production" else None,
+    allow_origins=settings.cors_origins_list,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

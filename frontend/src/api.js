@@ -1,4 +1,8 @@
-const BACKEND_URL = import.meta.env.VITE_API_URL || '';
+const BACKEND_URL = import.meta.env.VITE_API_URL || (
+  typeof window !== 'undefined' && (window.location.hostname.includes('vercel.app') || window.location.hostname.includes('trust-pay'))
+    ? 'https://trustpayai.onrender.com'
+    : ''
+);
 const API_BASE = `${BACKEND_URL}/api`;
 
 async function handleResponse(res, fallbackError = 'API Request Failed') {
@@ -31,6 +35,23 @@ export async function fetchStats() {
 // ----------------------------------------------------------------------
 // Procurement & Scenarios
 // ----------------------------------------------------------------------
+export async function processAutonomousProcurement(prompt, agentId = 'agent_autonomous_core', agentName = 'Autonomous Procurement Worker', context = null) {
+  const res = await fetch(`${API_BASE}/procurement/agent/process`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, agent_id: agentId, agent_name: agentName, context })
+  });
+  return handleResponse(res, 'Failed to process autonomous procurement');
+}
+
+export async function fetchCatalog(query = '', category = '', maxBudget = null) {
+  let url = `${API_BASE}/procurement/catalog?query=${encodeURIComponent(query)}`;
+  if (category) url += `&category=${encodeURIComponent(category)}`;
+  if (maxBudget) url += `&max_budget=${encodeURIComponent(maxBudget)}`;
+  const res = await fetch(url);
+  return handleResponse(res, 'Failed to fetch catalog');
+}
+
 export async function fetchScenarios() {
   const res = await fetch(`${API_BASE}/procurement/scenarios`);
   return handleResponse(res, 'Failed to fetch test scenarios');
@@ -236,4 +257,42 @@ export async function invokeMCPTool(toolName, args, agentId = 'agent_procurement
 export async function fetchMCPLogs() {
   const res = await fetch(`${API_BASE}/mcp/logs`);
   return handleResponse(res, 'Failed to fetch MCP audit logs');
+}
+
+// ----------------------------------------------------------------------
+// Organizations & Workspaces
+// ----------------------------------------------------------------------
+export async function fetchOrganizations() {
+  const res = await fetch(`${API_BASE}/organizations`);
+  return handleResponse(res, 'Failed to fetch organizations');
+}
+
+export async function fetchCurrentOrganization() {
+  const res = await fetch(`${API_BASE}/organizations/current`);
+  return handleResponse(res, 'Failed to fetch current organization');
+}
+
+export async function switchOrganization(orgId) {
+  const res = await fetch(`${API_BASE}/organizations/switch/${orgId}`, {
+    method: 'POST'
+  });
+  return handleResponse(res, 'Failed to switch organization');
+}
+
+export async function updateCurrentOrganization(data) {
+  const res = await fetch(`${API_BASE}/organizations/current`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return handleResponse(res, 'Failed to update organization');
+}
+
+export async function connectOrganizationPayment(data) {
+  const res = await fetch(`${API_BASE}/organizations/connect-payment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return handleResponse(res, 'Failed to connect payment account');
 }
